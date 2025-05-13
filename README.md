@@ -11,4 +11,9 @@ Posits Offer:
  - Better dynamic range in fewer bits
 
 Softposit is a software implementation of the posit standard therefore it can be slower than hardware floats due to optimizations,
-but may offer better accuracy or compactness
+but may offer better accuracy or compactness.
+
+### Selected Library: Eigen
+
+Eigen is a popular C++ linear algebra library that allows custom types through NumTraits and templating,
+Posits were implemented using c++```NumTraits<posit16>```
