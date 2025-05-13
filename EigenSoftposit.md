@@ -21,7 +21,7 @@ Posits were implemented using ```NumTraits<posit32>``` template specialization
 ### Implementation
 
 The ```posit32``` (32-bit posit) type from [SoftPosit-cpp](https://github.com/Posit-Foundation/soft-posit-cpp) was used to represent a comparison between ```float``` (32-bit IEEE-754 on Linux).
-Template specialization for ```NumTraits<posit32>``` was used to integrate a posit16 into Matrices.
+Template specialization for ```NumTraits<posit32>``` was used to integrate a posit32 into Matrices.
 ```c++
 // Posit NumTraits specialization for Eigen
 namespace Eigen 
@@ -90,6 +90,7 @@ felapsed += fend - fstart;
 ### Benchmarking  
 
 Matrix Ops Measured: Multiplication, Addition, Subtraction  
+Measurement: Aggregated time taken to perform addition, subtraction and multiplication of matrices
 Matrix Sizes: From 10×10 to 50×50 in 10-step increments  
 Repetitions: 5 per measurement  
 Values: 
