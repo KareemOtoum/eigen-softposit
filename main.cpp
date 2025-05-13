@@ -27,26 +27,58 @@ namespace Eigen
         static inline Real dummy_precision() { return p16(0.00001f); }
         static inline int digits10() { return 3; }  // arbitrary safe num
     };
+
+    template<>
+    struct NumTraits<posit32> {
+        using Self = posit32;
+        using Real = posit32;
+        using NonInteger = posit32;
+        using Nested = posit32;
+        using Literal = float;
+    
+        enum {
+            IsComplex = 0,
+            IsInteger = 0,
+            IsSigned = 1,
+            RequireInitialization = 1,
+            ReadCost = 1,
+            AddCost = 2,
+            MulCost = 2
+        };
+    
+        static inline Real epsilon() { return p32(0.00001f); }
+        static inline Real dummy_precision() { return p32(0.00001f); }
+        static inline int digits10() { return 3; }  // arbitrary safe num
+    };
 }
 
-void benchmark(int r, int c, int repetitions)
+template<typename A, typename B>
+void benchmark(int r, int c, int repetitions, A&& numa, B&& numb)
 {
     assert(repetitions > 0);
     using namespace std::chrono;
-    Eigen::Matrix<posit16, Eigen::Dynamic, Eigen::Dynamic> pa(r, c);
-    Eigen::Matrix<posit16, Eigen::Dynamic, Eigen::Dynamic> pb(r, c);
+    using namespace Eigen;
 
-    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> fa(r, c);
-    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> fb(r, c);
+    Matrix<posit32, Dynamic, Dynamic> pa(r, c);
+    Matrix<posit32, Dynamic, Dynamic> pb(r, c);
 
-    pa.fill(p16(5.241));
-    pb.fill(p16(3.333));
-    fa.fill(float(5.241));
-    fb.fill(float(3.333));
+    Matrix<float, Dynamic, Dynamic> fa(r, c);
+    Matrix<float, Dynamic, Dynamic> fb(r, c);
+
+    Matrix<double, Dynamic, Dynamic> da(r, c);
+    Matrix<double, Dynamic, Dynamic> db(r, c);
+
+    pa.fill(p32(std::forward<A>(numa)));
+    pb.fill(p32(std::forward<B>(numb)));
+    fa.fill(float(std::forward<A>(numa)));
+    fb.fill(float(std::forward<B>(numb)));
+    da.fill(std::forward<A>(numa));
+    db.fill(std::forward<B>(numb));
 
     duration<double, std::micro> pelapsed; 
     duration<double, std::micro> felapsed;
-    double mean_error{};
+    double posit_mean_error{};
+    double float_mean_error{};
     for(int i {}; i < repetitions; ++i)
     {
         auto pstart = high_resolution_clock::now();
@@ -64,15 +96,15 @@ void benchmark(int r, int c, int repetitions)
         felapsed += fend - fstart;
         
         // calculate error
-        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> 
-            p_to_f(pmul.rows(), pmul.cols());
+        Matrix<double, Dynamic, Dynamic> ref = da * db;
+        Matrix<double, Dynamic, Dynamic> p_to_d(r, c);
 
         for(int row{}; row < pmul.rows(); ++row) {
             for(int col{}; col < pmul.cols(); ++col) {
-                p_to_f(row, col) = pmul(row, col).toDouble();
+                p_to_d(row, col) = pmul(row, col).toDouble();
             }
         }
-        
+
         if (!fmul.allFinite()) {
             std::cerr << "Float result has NaN or Inf at size " << r << "x" << c << "\n";
             return;
@@ -82,18 +114,22 @@ void benchmark(int r, int c, int repetitions)
             return;
         }
 
-        auto abs_error = (fmul - p_to_f).cwiseAbs();
-        mean_error += abs_error.mean();
+        auto posit_abs_error = (ref - p_to_d).cwiseAbs();
+        auto float_abs_error = (ref - fmul.cast<double>()).cwiseAbs();
+        posit_mean_error += posit_abs_error.mean();
+        float_mean_error += float_abs_error.mean();
     }
     pelapsed /= repetitions;
     felapsed /= repetitions;
-    mean_error /= repetitions;
+    posit_mean_error /= repetitions;
+    float_mean_error /= repetitions;
 
     std::cout << "\t--------Matrix Size: " << 
     r << "x" << c << "--------\n";
     std::cout << "\t Posit Time taken: " << pelapsed.count() << "\n";
     std::cout << "\t Float Time taken: " << felapsed.count() << "\n";
-    std::cout << "\t Posit Mean Absolute Error: " << mean_error << "\n";
+    std::cout << "\t Posit Mean Absolute Error: " << posit_mean_error << "\n";
+    std::cout << "\t Float Mean Absolute Error: " << float_mean_error << "\n";
 }
 
 int main()
@@ -116,7 +152,10 @@ int main()
 
     for(int i{ 10 }; i <= 50; i += 10)
     {
-        benchmark(i, i, 2);
+        benchmark(i, i, 5, 1.0, 2.0);
+        benchmark(i, i, 5, 1.00001, 0.99999);
+        benchmark(i, i, 5, 1e-5, 2e-5);
+        benchmark(i, i, 5, 1e4, 1e4);
     }
       
     return 0;
